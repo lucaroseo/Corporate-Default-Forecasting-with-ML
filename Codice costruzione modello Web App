@@ -1,0 +1,111 @@
+
+# WEB APP BUSINESS ANALYTICS
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+df=pd.read_excel(r'df_completo_375_aziende.xlsx')
+
+#creo indice
+df=df.set_index('Unnamed: 0')
+
+# converto colonna status in valori binari 
+#2 per colore viola, 3 per colore giallo , 4 per colore azzurro
+df = df.replace(to_replace = ['Attiva','Fallita'],value = ['2','3'])
+df = df.replace(to_replace = ['Cessata'],value = ['4'])
+
+
+#sistemo  dataset da nan
+#elimino colonne con numero elevato nan 
+
+del df["Grado di ammortamento"]
+del df["Costo denaro a prestito"]
+del df["Grado di copertura degli interessi passivi"]
+
+# replace nan n.d. d.s. con Nan
+df.replace(to_replace="nan",value=np.nan, inplace=True)
+df.replace(to_replace="n.d.",value=np.nan,inplace=True)
+df.replace(to_replace="n.s.",value=np.nan,inplace=True)
+
+# replace nan con valore medio per variabile
+df.fillna(df.mean(),inplace=True)
+df.head()
+
+#elimino colonne doppie
+df = df.T.drop_duplicates().T
+
+df.columns
+
+#estraggo status
+status=df["Status"]
+
+    
+# elimino dal dataset per analisi pca
+del df['Status']
+del df['anno_x']
+
+
+
+#riaggiungo al df colonna anni e status e converto in valori binari
+#status attiva=1 cessata=0 fallita=0
+
+df=df.assign(Status=status)
+df = df.replace(to_replace = ['2','3'],value = ['1','0'])
+df = df.replace(to_replace = ['4'],value = ['0'])
+
+# numero aziende in attivo vs aziende fallite
+df["Status"].value_counts()
+
+
+#cambio nome variabili
+df.columns
+df.rename(columns = {'Indice corrente':'IndiceCorrente', 'Patrimonio Netto':'PatrimonioNetto',
+                              'Incid. oneri/Proventi extrag. (%)':'IncidOneriProventi',
+                             'Debt/EBITDA ratio_x':'DebtEBITDA' }, inplace = True)
+
+df=df[['IndiceCorrente','PatrimonioNetto','IncidOneriProventi','DebtEBITDA',"Status"]]
+
+#creo dataset per regressione logistica
+#variabili indipendenti
+features=df.iloc[:,0:4]
+#variabile status
+label=df.iloc[:,4]
+
+    
+   
+#########
+#Alberi di decisione
+
+
+from sklearn.tree import DecisionTreeClassifier 
+from sklearn.model_selection import train_test_split 
+from sklearn import metrics 
+from sklearn import tree
+
+
+# 70% training and 30% test
+X_train_a, X_test_a, y_train_a, y_test_a = train_test_split(features, label, test_size=0.3,random_state=0) 
+
+#alpha ottimizzato
+alpha_opt=0.016
+
+#albero con pruning
+# Creo Decision Tree classifer object
+clf = DecisionTreeClassifier(random_state=0,ccp_alpha=alpha_opt)
+
+# fit Decision Tree Classifer
+clf = clf.fit(X_train_a,y_train_a)
+
+#previsioni su test data
+y_pred_a = clf.predict(X_test_a)
+
+text_representation = tree.export_text(clf)
+print(text_representation)
+
+
+#salvo il modello
+import pickle as pkl  
+pickle_out1 = open("clf.pkl", "wb")  
+pkl.dump(clf, pickle_out1)  
+pickle_out1.close()  
