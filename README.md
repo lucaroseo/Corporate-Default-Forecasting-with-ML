@@ -4,3 +4,4 @@ I risultati ottenuti fanno riferimento alla tipologia di aziende e ai dati di cu
 Per raggiungere il nostro scopo abbiamo deciso di utilizzare alcuni modelli di machine learning per vederne la performance, mettendoli poi a confronto fra loro.
 In conclusione, abbiamo creato una dashboard interattiva per un ipotetico cliente che, inserendo manualmente alcuni dati, voglia avere una risposta immediata dall’algoritmo.
 L’impostazione del lavoro è stata fatta seguendo i passi dettati dal CRISP MODEL.
+L'intero progetto è stato svolto usando Python come linguaggio di programmazione.
