@@ -1,0 +1,60 @@
+
+import pandas as pnd  
+import numpy as nmp  
+import pickle as pkl  
+import streamlit as smt  
+from PIL import Image as img  
+
+
+
+# loading in the model to predict on the data  
+pickle_in1 = open('/Users/lucaroseo/Desktop/Uni/progetto business/clf.pkl', 'rb')  
+clf = pkl.load(pickle_in1)  
+
+
+
+
+# here, we will define the function which will make the prediction using the     
+# data which the user have imported  
+ 
+def prediction1(IndiceCorrente, PatrimonioNetto , IncidOneriProventi,DebtEBITDA):     
+    
+    prediction1 = clf.predict([[IndiceCorrente, PatrimonioNetto , IncidOneriProventi,DebtEBITDA]])  
+    print(prediction1)  
+    return prediction1  
+
+
+# Here, this is the main function in which we will be defining our webpage   
+def main():  
+      # Now, we will give the title to out web page  
+    smt.title("Default Status Prediction")  
+        
+    # Now, we will be defining some of the frontend elements of our web            # page like the colour of background and fonts and font size, the padding and    # the text to be displayed  
+    html_temp = """  
+    <div style = "background-colour: #FFFF00; padding: 16px">  
+    <h1 style = "color: #000000; text-align: centre; "> Streamlit Default Classifier ML App   
+     </h1>  
+    </div>  
+    """  
+  
+    
+    smt.markdown(html_temp, unsafe_allow_html = True)  
+
+
+# Here, the following lines will create the text boxes in which the user can     # enter the data which is required for making the prediction  
+IndiceCorrente = smt.text_input ("Indice corrente ", " Type Here")  
+PatrimonioNetto = smt.text_input ("Patrimonio netto ", " Type Here")  
+IncidOneriProventi = smt.text_input ("Incid. oneri/Proventi extrag. (%) ", " Type Here")  
+DebtEBITDA = smt.text_input ("Debt/EBITDA ratio_x ", " Type Here")  
+result = " "  
+    
+    
+    # here, the below line will ensure that whenever the button named 'Predict' # is clicked, the prediction function that is defined earlier is called for making   # the prediction and it will also store it in the variable result  
+if smt.button ("Predict"):  
+     result = prediction1 (IndiceCorrente, PatrimonioNetto , IncidOneriProventi,DebtEBITDA)  
+     smt.success ('Status aziendale {}'.format(result))  
+     
+if __name__== '__main__':   
+    main()  
+    
+# streamlit run "/Users/lucaroseo/Desktop/Uni/progetto business/app.py"  
