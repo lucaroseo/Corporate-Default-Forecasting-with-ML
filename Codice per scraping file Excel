@@ -1,0 +1,1639 @@
+import pandas as pd
+import numpy as np
+
+
+
+aida_excel_list=['Aida_Export_aziende_1.xlsx','Aida_Export_aziende_2.xlsx',
+                 'Aida_Export_aziende_3.xlsx','Aida_Export_aziende_4.xlsx',
+                 'Aida_Export_aziende_5.xlsx','Aida_Export_aziende_6.xlsx',
+                 'Aida_Export_aziende_7.xlsx','Aida_Export_aziende_8.xlsx']
+
+xl1=pd.ExcelFile('Aida_Export_aziende_1.xlsx')
+xl2=pd.ExcelFile('Aida_Export_aziende_2.xlsx')
+xl3=pd.ExcelFile('Aida_Export_aziende_3.xlsx')
+xl4=pd.ExcelFile('Aida_Export_aziende_4.xlsx')
+xl5=pd.ExcelFile('Aida_Export_aziende_5.xlsx')
+xl6=pd.ExcelFile('Aida_Export_aziende_6.xlsx')
+xl7=pd.ExcelFile('Aida_Export_aziende_7.xlsx')
+xl8=pd.ExcelFile('Aida_Export_aziende_8.xlsx')
+
+
+sheet_list= xl1.sheet_names+xl2.sheet_names+xl3.sheet_names+xl4.sheet_names +xl5.sheet_names+xl6.sheet_names+xl7.sheet_names+xl8.sheet_names
+print(sheet_list)
+
+counter=0
+status_dict={} #definisco un dizionare per catturare lo stato giuridico dell'azienda
+df_profilo_finanziario_dict={} #definisco un dizionario per catturare la parte con dati del profilo finanz.
+df_indici_dict={} #definisco un dizionario per catturare gli indici
+
+
+for aida_sheet in aida_excel_list:
+    xl = pd.ExcelFile(aida_sheet)
+    sheet_list_temp=xl.sheet_names
+    for sheet_name in sheet_list_temp:
+        
+        try:    
+            
+            print(aida_sheet)
+            print(sheet_name)
+            
+            counter=counter+1
+            #print('CONTEGGIO', counter)
+            
+    
+            
+            df = pd.read_excel(aida_sheet,sheet_name=sheet_name)
+            
+    
+                
+                
+            for row in df.itertuples():
+                if row[1]== 'Stato giuridico':
+                    for pippo in row:
+                        if str(pippo).strip()=='Attiva':
+                          status='Attiva'
+                          print(status)
+                          break
+                        if str(pippo).strip()=='Cessata (Fusione)':
+                          status='Cessata'
+                          print(status)
+                          break
+                        if str(pippo).strip()=='Fallita':
+                          status='Fallita'
+                          print(status)
+                          break
+                    nome_azienda=str(counter)+ ' - ' +sheet_name
+                    status_dict[nome_azienda]=status #aggiungo al dizionario la coppia chiave-valore (nome azienda-status)
+            
+            start_row=0
+            end_row=0
+            found=False
+            for row in df.itertuples():
+                if found==False:
+                    if row[1]=='Profilo finanziario e dipendenti':
+                       start_row=row[0]+2
+                       print(start_row)
+                    for pippo in row:
+                        if str(pippo).replace(" ", "")=='Dipendenti':
+                            found=True
+                            end_row=row[0]
+                            print(end_row)
+                            break
+                else:
+                    break
+    
+            df_profilo_finanziario = df.copy().loc[start_row:end_row]
+            df_profilo_finanziario=df_profilo_finanziario.dropna(axis=1, how='all')
+            df_profilo_finanziario.columns = df_profilo_finanziario.iloc[0]
+            df_profilo_finanziario=df_profilo_finanziario.drop(df_profilo_finanziario.index[0]).reset_index(drop=True)
+            
+            old_columns=df_profilo_finanziario.columns
+            new_columns=[]
+            for index, col in enumerate(old_columns):
+                if isinstance(col, str):
+                    if index==0:
+                        new_columns.append(col)
+                    else:
+                        new_columns.append(col)
+                        new_columns.append(np.nan)
+                        new_columns.append(np.nan)
+            
+            #blocchi per le eccezioni
+            #blocco 1
+            if ((nome_azienda=='194 - ANTIMAX S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='220 - ROMAGNA RUOTE S.R.L.') or (nome_azienda=='277 - EVOLUTION S.R.L.') or (nome_azienda=='307 - SPALK S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='326 - LOSNA S.R.L.') or (nome_azienda=='337 - RIO S.R.L.') or (nome_azienda=='375 - GUARNITAUTO S.R.L.')):                
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            new_columns.append(col)
+                            new_columns.append(np.nan)
+                        
+                    if index+1==len(old_columns):
+                        new_columns.append(np.nan)
+                        
+            #blocco 2
+            if ((nome_azienda=='175 - ASTIGIANA AMMORTIZZATORI S.R.L.') or (nome_azienda=='274 - VEMA S.R.L.') or (nome_azienda=='303 - DANISI ENGINEERING S.R.L.')):     
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            if (index+2)% 2 == 0: #se indice+2 delle righe che contengono stringa di old_columns è pari fai questo
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            else: #se è dispari fai questo
+                                new_columns.append(col)
+                                new_columns.append(np.nan)        
+            #blocco 3
+            if ((nome_azienda=='7 - IMR-INDUSTRIALESUD S.P.A.') or (nome_azienda=='10 - VALEO - S.P.A.') or (nome_azienda=='29 - PLASTIC COMPONENTS AND MODULES ') or (nome_azienda=='37 - SAPA S.P.A.') or (nome_azienda=='55 - MAXION WHEELS ITALIA S.R.L.') or (nome_azienda=='58 - INDUSTRIALESUD SPA') or (nome_azienda=='70 - AP AUTOMOTIVE PRODUCTS S.R.L.') or (nome_azienda=='74 - BROSE MELFI AUTOMOTIVE S.R.L.') or (nome_azienda=='87 - MODINE PONTEVICO S.R.L.') or (nome_azienda=='97 - LAMPA - S.P.A.') or (nome_azienda=='101 - A.E.B. S.P.A.') or (nome_azienda=='115 - WEBASTO THERMO & COMFORT ITALY ') or (nome_azienda=='157 - UNIFER S.P.A.') or (nome_azienda=='164 - BIMECC ENGINEERING S.P.A.') or (nome_azienda=='180 - SELMAT VEICOLI SPECIALI S.R.L.') or (nome_azienda=='196 - TECNOCAR S.R.L.') or (nome_azienda=='199 - AGLA POWER TRANSMISSION S.P.A.') or (nome_azienda=='258 - C.A.M. - COSTRUZIONE AUTO ACCES') or (nome_azienda=='272 - IGS RIVA S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='276 - T.G.M. - S.R.L.') or (nome_azienda=='292 - VAPSINT S.R.L.') or (nome_azienda=='304 - ROMANO S.R.L.') or (nome_azienda=='314 - ST.LA S.R.L.') or (nome_azienda=='347 - MECARM S.R.L.')):              
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                           
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            else:
+                                new_columns.append(np.nan)
+                                new_columns.append(col)
+                                new_columns.append(np.nan) 
+            
+
+            #blocco 4
+            if ((nome_azienda=='16 - INTERCABLE S.R.L.') or (nome_azienda=='38 - VHIT S.P.A.') or (nome_azienda=='40 - MAGNA CLOSURES S.P.A.') or (nome_azienda=='48 - MAHLE BEHR ITALY S.R.L.') or (nome_azienda=='77 - O.Z. S.P.A.') or (nome_azienda=='129 - G.M.P. GROUP S.R.L.') or (nome_azienda=='130 - ASSALI STEFEN S.R.L.') or (nome_azienda=='136 - DUERRE TUBI STYLE GROUP S.P.A. ') or (nome_azienda=='153 - STAMET STAMPAGGI METALLICI - SO') or (nome_azienda=='168 - MIRAGLIO SPA SOCIO UNICO') or (nome_azienda=='169 - V.A.R. - S.R.L.') or (nome_azienda=='179 - G.P. TECNICA S.R.L.') or (nome_azienda=='204 - ARAS S.R.L.') or (nome_azienda=='223 - BRIST AXLE SYSTEMS S.R.L.') or (nome_azienda=='305 - FRENCO SRL') or (nome_azienda=='319 - AUTOCAR TECNOLOGIE S.R.L.') or (nome_azienda=='332 - SAGLIETTI S.R.L.') or (nome_azienda=='360 - FLEXBALL ITALIANA S.R.L.')):        
+                 old_columns=df_profilo_finanziario.columns
+                 new_columns=[]
+                 for index, col in enumerate(old_columns):
+                     if isinstance(col, str):
+                         if index==0:
+                             new_columns.append(col)
+                         else:
+                             if index==2:
+                                 new_columns.append(col)
+                                 new_columns.append(np.nan)
+                             
+                             else:
+                                 if index==28:
+                                     new_columns.append(col)
+                                     new_columns.append(np.nan)
+                                     new_columns.append(np.nan)
+                             
+                                 else:
+                                     new_columns.append(np.nan)
+                                     new_columns.append(col)
+                                     new_columns.append(np.nan)
+                 new_columns = new_columns[:-1]
+            
+            #blocco 5
+            if ((nome_azienda=='108 - BENACCHIO SRL') or (nome_azienda=='222 - CARBOPRESS SOCIETA_ PER AZIONI') or (nome_azienda=='371 - ESCOM S.R.L.')):            
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            else:
+                                if index==23 or index==25:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                else:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+            
+            #blocco 6
+            if ((nome_azienda=='121 - ALGO S.P.A.') or (nome_azienda=='225 - BREMBO PERFORMANCE S.P.A.') or (nome_azienda=='231 - SATURNO DUE S.R.L.') or (nome_azienda=='252 - MCF SAFETY BELTS S.R.L.')):            
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            
+                new_columns = new_columns[:-1]
+            
+            #blocco 7
+            if ((nome_azienda=='132 - BI.TECH S.R.L.') or (nome_azienda=='248 - DOGA ITALIA S.R.L.')):             
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2 or index==5 or index==8 or index==11:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)            
+            #blocco 8
+            if ((nome_azienda=='159 - SEALING AND BRAKE HOSES EXTRUSI') or (nome_azienda=='185 - ROAD STAR SOCIETA_ A RESPONSABI') or (nome_azienda=='197 - FISPA S.R.L.') or (nome_azienda=='273 - WRS SRL')):  
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                               new_columns.append(col)
+                               new_columns.append(np.nan) 
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+
+            #blocco 9
+            if ((nome_azienda=='167 - M.C.I. DI CICILLINI CARLO & C. ') or (nome_azienda=='345 - ANDREOLI E C. SRL')):              
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2 or index==5:
+                               new_columns.append(col)
+                               new_columns.append(np.nan)
+                               new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+
+            
+            #blocco 10
+            if ((nome_azienda=='178 - SFARMEC S.R.L.') or (nome_azienda=='216 - B.M.C. S.R.L.') or (nome_azienda=='244 - SPEEDLINE TRUCK S.R.L.') or (nome_azienda=='246 - ISOKIT S.R.L.') or (nome_azienda=='253 - PAGG ASPOCK S.R.L.') or (nome_azienda=='256 - REFLEXALLEN S.P.A.')  or (nome_azienda=='280 - OSVAT OFFICINA SPECIALIZZATA VA') or (nome_azienda=='358 - HT&L FITTING ITALIA S.R.L.')):             
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==17 or index==19 or index==21 or index==23 or index==25:
+                               new_columns.append(col)
+                               new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                                
+            #blocco 11
+            if ((nome_azienda=='202 - APE S.R.L. ADVANCED PROJECT ENG') or (nome_azienda=='205 - EUROPA RIMORCHI S.R.L.') or (nome_azienda=='210 - MIRCA S.R.L.S.') or (nome_azienda=='236 - C.P.C. COMPOSITI S.R.L. A SOCIO') or (nome_azienda=='240 - RVS S.R.L.') or (nome_azienda=='249 - S.S.A. ENGINEERING S.R.L. - IN ') or (nome_azienda=='284 - AIR TOP ITALIA S.R.L.') or (nome_azienda=='286 - TECNOLOGIE E MATERIALI INNOVATI') or (nome_azienda=='287 - PAGLIARANI STEFANO S.R.L.') or (nome_azienda=='293 - OFFICINA MECCANICA CIMEP (COSTR') or (nome_azienda=='296 - OBA TRADIZIONE FUTURA S.R.L.') or (nome_azienda=='311 - MOULDING TECH SRL') or (nome_azienda=='320 - CO.PAR. S.R.L.') or (nome_azienda=='325 - METALSECURE SRL') or (nome_azienda=='330 - TEMAC - S.R.L.') or (nome_azienda=='333 - EUROGIELLE S.R.L.') or (nome_azienda=='343 - TEKNO ESPANSI SRL') or (nome_azienda=='346 - SUPERSPRINT S.R.L.') or (nome_azienda=='349 - NUOVA MAPA S.R.L.') or (nome_azienda=='350 - AURILIS GROUP ITALIA S.R.L.') or (nome_azienda=='352 - CHESINI MECCANICA S.R.L.') or (nome_azienda=='353 - E.CO. S.R.L.') or (nome_azienda=='355 - SPIRALFLEX S.R.L.') or (nome_azienda=='357 - LOKHEN S.R.L.') or (nome_azienda=='361 - ANDROID INDUSTRIES ITALY S.R.L.') or (nome_azienda=='363 - BRIER DESIGN SOCIETA_ A RESPONS') or (nome_azienda=='364 - PEDERZINI MECCANICA - S.R.L.') or (nome_azienda=='365 - ITALGIUNTI S.R.L.') or (nome_azienda=='366 - EVOTEK S.R.L.') or (nome_azienda=='367 - SERBATOIGPL.COM S.R.L.') or (nome_azienda=='369 - ARTIGIANATO ITALIANO SOCIETA_ A') or (nome_azienda=='370 - SANGRO PROGETTI S.R.L.') or (nome_azienda=='372 - SER.MA. S.R.L.') or (nome_azienda=='374 - DG TS S.R.L.')):
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            new_columns.append(col)
+                            new_columns.append(np.nan)
+
+
+            #blocco 12
+            if ((nome_azienda=='278 - SHIP-CAR S.R.L.') or (nome_azienda=='295 - ROECHLING AUTOMOTIVE FILTERS S.') or (nome_azienda=='316 - OMS S.R.L.') or (nome_azienda=='373 - EURO STAMP 1 S.R.L.')):             
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==14:
+                              new_columns.append(col)
+                              new_columns.append(np.nan) 
+                              new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                
+            #blocco 13
+            if ((nome_azienda=='289 - UMBRA RIMORCHI-SOCIETA_ A RESPO') or (nome_azienda=='336 - RAIL S.R.L.') or (nome_azienda=='344 - FOUR SEASONS ITALY S.R.L.')):            
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==10 or index==13 or index==16:
+                              new_columns.append(col)
+                              new_columns.append(np.nan) 
+                              new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+            
+            
+            #blocco codici singoli
+            if nome_azienda=='66 - LCI ITALY S.R.L.':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                                if index==2:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                    new_columns.append(np.nan)
+                                                       
+                                else:
+                                    if index==11:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+                
+                                    else:
+                                        new_columns.append(col)    
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='119 - TAKLER S.R.L.':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            if index==2:
+                                new_columns.append(col) 
+                                new_columns.append(np.nan)
+                                     
+                            else:
+                                if index==11 or index==13:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col) 
+                                else: 
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='135 - ELLEDI S.R.L.':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                                if index== 2:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                else:
+                                    if  index==20 or index==22:
+                                        new_columns.append(np.nan)
+                                        new_columns.append(col)
+                                        
+                                    else:
+                                        new_columns.append(np.nan)
+                                        new_columns.append(col)    
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='232 - MASIERO ANTONIO - SOCIETA_ PER ':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                               new_columns.append(col)
+                               new_columns.append(np.nan) 
+                            else:
+                                if index==5:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                else:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                    new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='224 - BERETTA SRL':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==20 or index==22 or index==24 or index==26:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='230 - G.D. S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==14 or index==16 or index==21 or index==23:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='251 - NEW ROYAL PLASTIC S.R.L.':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==8 or index==10 or index==12 or index==23 or index==25:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='310 - CRP TECHNOLOGY S.R.L.':
+                old_columns=df_profilo_finanziario.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==8 or index==10 or index==12 or index==23 or index==25:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='259 - TECNECO FILTRI S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==5 or index==7 or index==9 or index==11:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='268 - L.A.M. S.P.A.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==4 or index==6 or index==14 or index==22 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='335 - VALMECCANICA S.P.A.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==4 or index==6 or index==14 or index==22 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='321 - ARCASTING S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==13:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='290 - TECNOWALL S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18 or index==21 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='323 - CORAM S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='348 - METALLARTE S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==9:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='300 - ITI INDUSTRIALE S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='327 - ASSEMBLAGGI SOCIETA_ PER AZIONI':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='338 - MACH - S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='309 - AUSTERAS S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==17 or index==20 or index==23:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='318 - F.D.M. S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==16 or index==19 or index==22:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='328 - COSIBO S.P.A.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==10 or index==13 or index==16 or index==19:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='334 - PRIMA INDUSTRIES S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==14 or index==17:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='339 - ADVANCED COMPOSITES SOLUTIONS S':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==5 or index==20:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='342 - D.I.R.P.A. S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12 or index==17:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='362 - MAFALDA INDUSTRIES S.R.L.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='368 - SINTEX AUTOMOTIVE ITALIA S.P.A.':
+                        old_columns=df_profilo_finanziario.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==5 or index==8:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+
+            #fine blocchi per le eccezioni
+            
+            df_profilo_finanziario.columns=new_columns
+            df_profilo_finanziario = df_profilo_finanziario[df_profilo_finanziario['Bilancio non consolidato'].notna()]
+            df_profilo_finanziario['Bilancio non consolidato']=df_profilo_finanziario['Bilancio non consolidato'].str.replace("  ","")
+            df_profilo_finanziario.rename(columns = {'Bilancio non consolidato':nome_azienda}, inplace = True)
+            df_profilo_finanziario=df_profilo_finanziario.dropna(axis=1, how='all')
+            print(df_profilo_finanziario.to_string())
+            df_profilo_finanziario = df_profilo_finanziario.iloc[:, 0:2]
+            
+            df_profilo_finanziario_dict[nome_azienda]=df_profilo_finanziario #aggiungo al dizionario la coppia chiave-valore (nome azienda-df con dati profilo finanz.)
+            
+            
+            start_row=0
+            end_row=0
+            found=False
+            for row in df.itertuples():
+                if found==False:
+                    if row[1]=='Indici':
+                       start_row=row[0]+2
+                       print(start_row)
+                    for pippo in row:
+                        if row[1]=='Probabilità di Default':
+                            found=True
+                            end_row=row[0]-3
+                            print(end_row)
+                            break
+                else:
+                    break
+    
+            df_indici = df.copy().loc[start_row:end_row]
+            df_indici=df_indici.dropna(axis=1, how='all')
+            df_indici.columns = df_indici.iloc[0]
+            df_indici=df_indici.drop(df_indici.index[0]).reset_index(drop=True)
+            
+            old_columns=df_indici.columns
+            new_columns=[]
+            for index, col in enumerate(old_columns):
+                if isinstance(col, str):
+                    if index==0:
+                        new_columns.append(col)
+                    else:
+                        new_columns.append(col)
+                        new_columns.append(np.nan)
+                        new_columns.append(np.nan)
+            
+            #blocchi per le eccezioni
+            #blocco 1
+            if ((nome_azienda=='194 - ANTIMAX S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='220 - ROMAGNA RUOTE S.R.L.') or (nome_azienda=='277 - EVOLUTION S.R.L.') or (nome_azienda=='307 - SPALK S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='326 - LOSNA S.R.L.') or (nome_azienda=='337 - RIO S.R.L.') or (nome_azienda=='375 - GUARNITAUTO S.R.L.')):                
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            new_columns.append(col)
+                            new_columns.append(np.nan)
+                        
+                    if index+1==len(old_columns):
+                        new_columns.append(np.nan)
+                        
+                        
+            #blocco 2
+            if ((nome_azienda=='175 - ASTIGIANA AMMORTIZZATORI S.R.L.') or (nome_azienda=='274 - VEMA S.R.L.') or (nome_azienda=='303 - DANISI ENGINEERING S.R.L.')):     
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            if (index+2)% 2 == 0: #se indice+2 delle righe che contengono stringa di old_columns è pari fai questo
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            else: #se è dispari fai questo
+                                new_columns.append(col)
+                                new_columns.append(np.nan)         
+      
+            #blocco 3
+            if ((nome_azienda=='7 - IMR-INDUSTRIALESUD S.P.A.') or (nome_azienda=='10 - VALEO - S.P.A.') or (nome_azienda=='29 - PLASTIC COMPONENTS AND MODULES ') or (nome_azienda=='37 - SAPA S.P.A.') or (nome_azienda=='55 - MAXION WHEELS ITALIA S.R.L.') or (nome_azienda=='58 - INDUSTRIALESUD SPA') or (nome_azienda=='70 - AP AUTOMOTIVE PRODUCTS S.R.L.') or (nome_azienda=='74 - BROSE MELFI AUTOMOTIVE S.R.L.') or (nome_azienda=='87 - MODINE PONTEVICO S.R.L.') or (nome_azienda=='97 - LAMPA - S.P.A.') or (nome_azienda=='101 - A.E.B. S.P.A.') or (nome_azienda=='115 - WEBASTO THERMO & COMFORT ITALY ') or (nome_azienda=='157 - UNIFER S.P.A.') or (nome_azienda=='164 - BIMECC ENGINEERING S.P.A.') or (nome_azienda=='180 - SELMAT VEICOLI SPECIALI S.R.L.') or (nome_azienda=='196 - TECNOCAR S.R.L.') or (nome_azienda=='199 - AGLA POWER TRANSMISSION S.P.A.') or (nome_azienda=='258 - C.A.M. - COSTRUZIONE AUTO ACCES') or (nome_azienda=='272 - IGS RIVA S.R.L. IN LIQUIDAZIONE') or (nome_azienda=='276 - T.G.M. - S.R.L.') or (nome_azienda=='292 - VAPSINT S.R.L.') or (nome_azienda=='304 - ROMANO S.R.L.') or (nome_azienda=='314 - ST.LA S.R.L.') or (nome_azienda=='347 - MECARM S.R.L.')):              
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                           
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            else:
+                                new_columns.append(np.nan)
+                                new_columns.append(col)
+                                new_columns.append(np.nan)            
+           
+            #blocco 4
+            if ((nome_azienda=='16 - INTERCABLE S.R.L.') or (nome_azienda=='38 - VHIT S.P.A.') or (nome_azienda=='40 - MAGNA CLOSURES S.P.A.') or (nome_azienda=='48 - MAHLE BEHR ITALY S.R.L.') or (nome_azienda=='77 - O.Z. S.P.A.') or (nome_azienda=='129 - G.M.P. GROUP S.R.L.') or (nome_azienda=='130 - ASSALI STEFEN S.R.L.') or (nome_azienda=='136 - DUERRE TUBI STYLE GROUP S.P.A. ') or (nome_azienda=='153 - STAMET STAMPAGGI METALLICI - SO') or (nome_azienda=='168 - MIRAGLIO SPA SOCIO UNICO') or (nome_azienda=='169 - V.A.R. - S.R.L.') or (nome_azienda=='179 - G.P. TECNICA S.R.L.') or (nome_azienda=='204 - ARAS S.R.L.') or (nome_azienda=='223 - BRIST AXLE SYSTEMS S.R.L.') or (nome_azienda=='305 - FRENCO SRL') or (nome_azienda=='319 - AUTOCAR TECNOLOGIE S.R.L.') or (nome_azienda=='332 - SAGLIETTI S.R.L.') or (nome_azienda=='360 - FLEXBALL ITALIANA S.R.L.')):        
+                 old_columns=df_indici.columns
+                 new_columns=[]
+                 for index, col in enumerate(old_columns):
+                     if isinstance(col, str):
+                         if index==0:
+                             new_columns.append(col)
+                         else:
+                             if index==2:
+                                 new_columns.append(col)
+                                 new_columns.append(np.nan)
+                             
+                             else:
+                                 if index==28:
+                                     new_columns.append(col)
+                                     new_columns.append(np.nan)
+                                     new_columns.append(np.nan)
+                             
+                                 else:
+                                     new_columns.append(np.nan)
+                                     new_columns.append(col)
+                                     new_columns.append(np.nan)
+                 new_columns = new_columns[:-1]
+
+            #blocco 5
+            if ((nome_azienda=='108 - BENACCHIO SRL') or (nome_azienda=='222 - CARBOPRESS SOCIETA_ PER AZIONI') or (nome_azienda=='371 - ESCOM S.R.L.')):            
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            else:
+                                if index==23 or index==25:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                else:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+            
+            #blocco 6
+            if ((nome_azienda=='121 - ALGO S.P.A.') or (nome_azienda=='225 - BREMBO PERFORMANCE S.P.A.') or (nome_azienda=='231 - SATURNO DUE S.R.L.') or (nome_azienda=='252 - MCF SAFETY BELTS S.R.L.')):            
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                            
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            
+                new_columns = new_columns[:-1]
+            
+            #blocco 7
+            if ((nome_azienda=='132 - BI.TECH S.R.L.') or (nome_azienda=='248 - DOGA ITALIA S.R.L.')):             
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2 or index==5 or index==8 or index==11:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+            
+            #blocco 8
+            if ((nome_azienda=='159 - SEALING AND BRAKE HOSES EXTRUSI') or (nome_azienda=='185 - ROAD STAR SOCIETA_ A RESPONSABI') or (nome_azienda=='197 - FISPA S.R.L.') or (nome_azienda=='273 - WRS SRL')):  
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                               new_columns.append(col)
+                               new_columns.append(np.nan) 
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            #blocco 9
+            if ((nome_azienda=='167 - M.C.I. DI CICILLINI CARLO & C. ') or (nome_azienda=='345 - ANDREOLI E C. SRL')):              
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2 or index==5:
+                               new_columns.append(col)
+                               new_columns.append(np.nan)
+                               new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+            
+            #blocco 10
+            if ((nome_azienda=='178 - SFARMEC S.R.L.') or (nome_azienda=='216 - B.M.C. S.R.L.') or (nome_azienda=='244 - SPEEDLINE TRUCK S.R.L.') or (nome_azienda=='246 - ISOKIT S.R.L.') or (nome_azienda=='253 - PAGG ASPOCK S.R.L.') or (nome_azienda=='256 - REFLEXALLEN S.P.A.')  or (nome_azienda=='280 - OSVAT OFFICINA SPECIALIZZATA VA') or (nome_azienda=='358 - HT&L FITTING ITALIA S.R.L.')):             
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==17 or index==19 or index==21 or index==23 or index==25:
+                               new_columns.append(col)
+                               new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+
+
+            #blocco 11
+            if ((nome_azienda=='202 - APE S.R.L. ADVANCED PROJECT ENG') or (nome_azienda=='205 - EUROPA RIMORCHI S.R.L.') or (nome_azienda=='210 - MIRCA S.R.L.S.') or (nome_azienda=='236 - C.P.C. COMPOSITI S.R.L. A SOCIO') or (nome_azienda=='240 - RVS S.R.L.') or (nome_azienda=='249 - S.S.A. ENGINEERING S.R.L. - IN ') or (nome_azienda=='284 - AIR TOP ITALIA S.R.L.') or (nome_azienda=='286 - TECNOLOGIE E MATERIALI INNOVATI') or (nome_azienda=='287 - PAGLIARANI STEFANO S.R.L.') or (nome_azienda=='293 - OFFICINA MECCANICA CIMEP (COSTR') or (nome_azienda=='296 - OBA TRADIZIONE FUTURA S.R.L.') or (nome_azienda=='311 - MOULDING TECH SRL') or (nome_azienda=='320 - CO.PAR. S.R.L.') or (nome_azienda=='325 - METALSECURE SRL') or (nome_azienda=='330 - TEMAC - S.R.L.') or (nome_azienda=='333 - EUROGIELLE S.R.L.') or (nome_azienda=='343 - TEKNO ESPANSI SRL') or (nome_azienda=='346 - SUPERSPRINT S.R.L.') or (nome_azienda=='349 - NUOVA MAPA S.R.L.') or (nome_azienda=='350 - AURILIS GROUP ITALIA S.R.L.') or (nome_azienda=='352 - CHESINI MECCANICA S.R.L.') or (nome_azienda=='353 - E.CO. S.R.L.') or (nome_azienda=='355 - SPIRALFLEX S.R.L.') or (nome_azienda=='357 - LOKHEN S.R.L.') or (nome_azienda=='361 - ANDROID INDUSTRIES ITALY S.R.L.') or (nome_azienda=='363 - BRIER DESIGN SOCIETA_ A RESPONS') or (nome_azienda=='364 - PEDERZINI MECCANICA - S.R.L.') or (nome_azienda=='365 - ITALGIUNTI S.R.L.') or (nome_azienda=='366 - EVOTEK S.R.L.') or (nome_azienda=='367 - SERBATOIGPL.COM S.R.L.') or (nome_azienda=='369 - ARTIGIANATO ITALIANO SOCIETA_ A') or (nome_azienda=='370 - SANGRO PROGETTI S.R.L.') or (nome_azienda=='372 - SER.MA. S.R.L.') or (nome_azienda=='374 - DG TS S.R.L.')):
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            new_columns.append(col)
+                            new_columns.append(np.nan)
+                            
+                            
+            #blocco 12
+            if ((nome_azienda=='278 - SHIP-CAR S.R.L.') or (nome_azienda=='295 - ROECHLING AUTOMOTIVE FILTERS S.') or (nome_azienda=='316 - OMS S.R.L.') or (nome_azienda=='373 - EURO STAMP 1 S.R.L.')):             
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==14:
+                              new_columns.append(col)
+                              new_columns.append(np.nan) 
+                              new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+
+            #blocco 13
+            if ((nome_azienda=='289 - UMBRA RIMORCHI-SOCIETA_ A RESPO') or (nome_azienda=='336 - RAIL S.R.L.') or (nome_azienda=='344 - FOUR SEASONS ITALY S.R.L.')):            
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==10 or index==13 or index==16:
+                              new_columns.append(col)
+                              new_columns.append(np.nan) 
+                              new_columns.append(np.nan)
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)            
+            
+            #blocco codici singoli
+            if nome_azienda=='66 - LCI ITALY S.R.L.':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                                if index==2:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                    new_columns.append(np.nan)
+                                                       
+                                else:
+                                    if index==11:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+                
+                                    else:
+                                        new_columns.append(col)    
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='119 - TAKLER S.R.L.':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                            
+                        else:
+                            if index==2:
+                                new_columns.append(col) 
+                                new_columns.append(np.nan)
+                                     
+                            else:
+                                if index==11 or index==13:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col) 
+                                else: 
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='135 - ELLEDI S.R.L.':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                                if index== 2:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                else:
+                                    if  index==20 or index==22:
+                                        new_columns.append(np.nan)
+                                        new_columns.append(col)
+                                        
+                                    else:
+                                        new_columns.append(np.nan)
+                                        new_columns.append(col)    
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='232 - MASIERO ANTONIO - SOCIETA_ PER ':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==2:
+                               new_columns.append(col)
+                               new_columns.append(np.nan) 
+                            else:
+                                if index==5:
+                                    new_columns.append(np.nan)
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                else:
+                                    new_columns.append(col)
+                                    new_columns.append(np.nan)
+                                    new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='224 - BERETTA SRL':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==20 or index==22 or index==24 or index==26:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='230 - G.D. S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==14 or index==16 or index==21 or index==23:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='251 - NEW ROYAL PLASTIC S.R.L.':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==8 or index==10 or index==12 or index==23 or index==25:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='310 - CRP TECHNOLOGY S.R.L.':
+                old_columns=df_indici.columns
+                new_columns=[]
+                for index, col in enumerate(old_columns):
+                    if isinstance(col, str):
+                        if index==0:
+                            new_columns.append(col)
+                        else:
+                            if index==8 or index==10 or index==12 or index==23 or index==25:
+                              new_columns.append(col)
+                              new_columns.append(np.nan)  
+                            else:
+                                new_columns.append(col)
+                                new_columns.append(np.nan)
+                                new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='259 - TECNECO FILTRI S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==5 or index==7 or index==9 or index==11:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='268 - L.A.M. S.P.A.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==4 or index==6 or index==14 or index==22 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='335 - VALMECCANICA S.P.A.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==4 or index==6 or index==14 or index==22 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan)  
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='321 - ARCASTING S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==13:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='290 - TECNOWALL S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18 or index==21 or index==24:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='323 - CORAM S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='348 - METALLARTE S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==9:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='300 - ITI INDUSTRIALE S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='327 - ASSEMBLAGGI SOCIETA_ PER AZIONI':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='338 - MACH - S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==12 or index==15 or index==18:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='309 - AUSTERAS S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==17 or index==20 or index==23:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='318 - F.D.M. S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==16 or index==19 or index==22:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='328 - COSIBO S.P.A.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==10 or index==13 or index==16 or index==19:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='334 - PRIMA INDUSTRIES S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==14 or index==17:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='339 - ADVANCED COMPOSITES SOLUTIONS S':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==5 or index==20:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='342 - D.I.R.P.A. S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12 or index==17:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='362 - MAFALDA INDUSTRIES S.R.L.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==6 or index==9 or index==12:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)
+            
+            
+            if nome_azienda=='368 - SINTEX AUTOMOTIVE ITALIA S.P.A.':
+                        old_columns=df_indici.columns
+                        new_columns=[]
+                        for index, col in enumerate(old_columns):
+                            if isinstance(col, str):
+                                if index==0:
+                                    new_columns.append(col)
+                                else:
+                                    if index==2 or index==5 or index==8:
+                                      new_columns.append(col)
+                                      new_columns.append(np.nan) 
+                                      new_columns.append(np.nan)
+                                    else:
+                                        new_columns.append(col)
+                                        new_columns.append(np.nan)            
+            
+            #fine blocchi per le eccezioni
+            
+            
+            df_indici.columns=new_columns
+            df_indici = df_indici[df_indici['Bilancio non consolidato'].notna()]
+            df_indici['Bilancio non consolidato']=df_indici['Bilancio non consolidato'].str.replace("   - ","")
+            df_indici=df_indici[df_indici['Bilancio non consolidato'].str.contains(' 1. Indicatori finanziari')==False]
+            df_indici=df_indici[df_indici['Bilancio non consolidato'].str.contains('  2. Indici della gestione corrente')==False]
+            df_indici=df_indici[df_indici['Bilancio non consolidato'].str.contains('  3. Indici di redditività')==False]
+            df_indici=df_indici[df_indici['Bilancio non consolidato'].str.contains('  4. Indici di produttività')==False]
+            df_indici=df_indici[df_indici['Bilancio non consolidato'].str.contains('  5. Dati significativi')==False]
+            df_indici.rename(columns = {'Bilancio non consolidato':nome_azienda}, inplace = True)
+            df_indici=df_indici.dropna(axis=1, how='all')
+            print(df_indici.to_string())
+            df_indici= df_indici.iloc[:, 0:2]
+           
+            df_indici_dict[nome_azienda]=df_indici #aggiungo al dizionario la coppia chiave-valore (nome azienda-df con gli indici)
+            
+            
+            
+            #estraggo l'anno di bilancio dalla prima colonna (profilo finanziario)
+            year=df_profilo_finanziario.columns[1]
+            year=year[-4:]
+            #rinomino le colonne del df
+            df_profilo_finanziario.rename(columns={df_profilo_finanziario.columns[0]:'data',df_indici.columns[1]:nome_azienda},inplace=True)
+            #aggiungo una nuova riga al df contenente l'anno
+            new_row= {'data': 'anno', nome_azienda: year}
+            df_profilo_finanziario = df_profilo_finanziario.append(new_row, ignore_index=True)
+            
+            
+            
+            
+            #estraggo l'anno di bilancio dalla prima colonna (indici)
+            year=df_indici.columns[1]
+            year=year[-4:]
+            #rinomino le colonne del df
+            df_indici.rename(columns={df_indici.columns[0]:'data',df_indici.columns[1]:nome_azienda},inplace=True)
+            #aggiungo una nuova riga al df contenente l'anno
+            new_row= {'data': 'anno', nome_azienda: year}
+            df_indici = df_indici.append(new_row, ignore_index=True)
+            
+
+            #creo i df completi (profilo finanziario e indici) con tutte le aziende
+            
+            if counter==1:
+                    
+                df_profilo_finanziario_aziende= df_profilo_finanziario
+                    
+                df_indici_aziende= df_indici
+                    
+            else:
+                    
+                valori_prof_fin = df_profilo_finanziario[nome_azienda]
+                df_profilo_finanziario_aziende=  df_profilo_finanziario_aziende.join(valori_prof_fin)
+                
+                
+                valori_indici = df_indici[nome_azienda]
+                df_indici_aziende =  df_indici_aziende.join(valori_indici)
+            
+            
+            
+        except Exception as e: print(e)
+    
+sheet_list_bis=list(status_dict.keys())
+sheet_list_done=list(df_indici_dict.keys()) #creo una lista con tutte le aziende per cui è avvenuta la "cattura" dei dati
+sheet_list_undone=list(set(sheet_list_bis)-set(sheet_list_done)) #creo una lista con tutte le aziende per cui NON è avvenuta la "cattura" dei dati
+
+
+
+
+df_profilo_finanziario_aziende.set_index('data', inplace=True)
+df_profilo_finanziario_aziende_transposed=df_profilo_finanziario_aziende.transpose()
+
+df_indici_aziende.set_index('data', inplace=True)
+df_indici_aziende_transposed=df_indici_aziende.transpose()
+
+
+
+df_status= pd.DataFrame(status_dict, index=['Status'])
+df_status_transposed=df_status.transpose()
+
+
+df_dati_completi_aziende=df_indici_aziende_transposed
+df_dati_completi_aziende=df_dati_completi_aziende.join(df_status_transposed)
+df_dati_completi_aziende=df_dati_completi_aziende.merge(df_profilo_finanziario_aziende_transposed, how="inner", left_index=True, right_index=True) 
+
+
+
+#esporto df in excel
+
+df_dati_completi_aziende.to_excel("df_completo_375_aziende.xlsx")
