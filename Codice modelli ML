@@ -1,0 +1,753 @@
+
+import pandas as pd
+import numpy as np
+
+#per prima cosa sistemo dataset da valori mancanti e Nan
+df=pd.read_excel(r'df_completo_375_aziende.xlsx')
+
+#creo indice
+df=df.set_index('Unnamed: 0')
+
+# converto colonna status in valori binari 
+#2 per colore viola, 3 per colore giallo , 4 per colore azzurro
+df = df.replace(to_replace = ['Attiva','Fallita'],value = ['2','3'])
+df = df.replace(to_replace = ['Cessata'],value = ['4'])
+
+
+#sistemo  dataset da nan
+#elimino colonne con numero elevato nan 
+
+del df["Grado di ammortamento"]
+del df["Costo denaro a prestito"]
+del df["Grado di copertura degli interessi passivi"]
+
+# replace nan n.d. d.s. con Nan
+df.replace(to_replace="nan",value=np.nan, inplace=True)
+df.replace(to_replace="n.d.",value=np.nan,inplace=True)
+df.replace(to_replace="n.s.",value=np.nan,inplace=True)
+
+# replace nan con valore medio per variabile
+df.fillna(df.mean(),inplace=True)
+df.head()
+
+#elimino colonne doppie
+df = df.T.drop_duplicates().T
+
+df.columns
+
+#estraggo status
+status=df["Status"]
+
+
+
+###################
+
+#EDA
+import sklearn
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+df.head()
+
+describe = df.astype('float64').describe().T
+#describe.to_excel("tabella.xlsx")
+
+print(describe)
+df.describe()
+corr = df.astype('float64').corr()
+corr
+
+# elimino dal dataset 
+del df['anno_x']
+
+#matrice di correlazione
+df.describe()
+corr = df.astype('float64').corr()
+#corr.to_excel("corr.xlsx")
+
+#plot correlazione
+plt.figure(figsize=(15,15))
+sns.heatmap(corr, cmap="Greens",annot=False)
+plt.show()
+
+
+################
+
+# Analisi PCA
+import sklearn
+import matplotlib
+import sklearn.decomposition
+from sklearn.decomposition import PCA
+from sklearn import preprocessing
+import matplotlib.pyplot as plt
+import sklearn.preprocessing
+from sklearn.preprocessing import StandardScaler
+
+# elimino dal dataset per analisi pca
+del df['Status']
+
+#######
+
+x = StandardScaler().fit_transform(df)
+x = pd.DataFrame(x, columns=df.columns)
+x.dtypes
+
+
+pcamodel = PCA(n_components=20)
+pca = pcamodel.fit_transform(x)
+pca.shape
+loadings=pd.DataFrame(pcamodel.components_.T)
+
+#varianza spiegata
+pcamodel.explained_variance_ 
+
+#somma varianza spiegata ratio
+pcamodel.explained_variance_ratio_
+sum(pcamodel.explained_variance_ratio_)
+
+#varianza spiegata cumulata
+plt.bar(range(1,len(pcamodel.explained_variance_ratio_ )+1),pcamodel.explained_variance_ratio_ )
+plt.ylabel('Explained variance Ratio')
+plt.xlabel('Components')
+plt.plot(range(1,len(pcamodel.explained_variance_ratio_ )+1),
+         np.cumsum(pcamodel.explained_variance_ratio_),
+         c='red',
+         label="Cumulative Explained Variance Ratio")
+plt.legend(loc='upper left')
+
+
+# ratio
+plt.plot(pcamodel.explained_variance_ratio_)
+plt.xlabel('number of components')
+plt.ylabel('cumulative explained variance')
+plt.show()
+
+#scree plot
+plt.plot(pcamodel.explained_variance_)
+plt.xlabel('number of components')
+plt.ylabel('cumulative explained variance')
+plt.show()
+
+#plot pca
+
+scatter_x=[pca[:, 0]]
+scatter_y=[pca[:, 1]]
+group=[status]
+plt.scatter(scatter_x, scatter_y, c=group, label=group)
+plt.legend(['Viola=Attiva - Gialla=Fallita - Azzurro=Cessata'])
+plt.show()
+
+#effetto delle variabili su ciascun componente
+ax = sns.heatmap(pcamodel.components_,
+                 cmap='YlGnBu',
+                 yticklabels=[ "PCA"+str(x) for x in range(1,pcamodel.n_components_+1)],
+                 xticklabels=list(x.columns),
+                 cbar_kws={"orientation": "horizontal"})
+ax.set_aspect("equal")
+
+
+#biplot
+
+def myplot(score,coeff,labels=None):
+    xs = score[:,0]
+    ys = score[:,1]
+    n = coeff.shape[0]
+    scalex = 1.0/(xs.max() - xs.min())
+    scaley = 1.0/(ys.max() - ys.min())
+    plt.scatter(xs * scalex,ys * scaley,s=5)
+    for i in range(n):
+        plt.arrow(0, 0, coeff[i,0], coeff[i,1],color = 'r',alpha = 0.5)
+        if labels is None:
+            plt.text(coeff[i,0]* 1.15, coeff[i,1] * 1.15, "Var"+str(i+1), color = 'green', ha = 'center', va = 'center')
+        else:
+            plt.text(coeff[i,0]* 1.15, coeff[i,1] * 1.15, labels[i], color = 'g', ha = 'center', va = 'center')
+ 
+    plt.xlabel("PC{}".format(1))
+    plt.ylabel("PC{}".format(2))
+    plt.grid()
+    
+plt.figure(figsize=(40,30))
+myplot(pca[:,0:2],np.transpose(pcamodel.components_[0:2, :]),list(x.columns))
+plt.show()
+
+
+
+######
+
+#modelli di classificazione
+
+
+#riaggiungo al df colonna anni e status e converto in valori binari
+#status attiva=1 cessata=0 fallita=0
+
+df=df.assign(Status=status)
+df = df.replace(to_replace = ['2','3'],value = ['1','0'])
+df = df.replace(to_replace = ['4'],value = ['0'])
+
+
+
+
+# numero aziende in attivo vs aziende fallite
+df["Status"].value_counts()
+
+
+#groupby
+groupby=df.groupby(['Status']).mean()
+groupby=groupby.T
+#groupby.to_excel("Groupby.xlsx")
+
+
+
+
+#creo dataset per regressione logistica
+#variabili indipendenti
+features=df.iloc[:,0:43]
+#variabile status
+label=df.iloc[:,43]
+
+
+
+#########
+
+#Regressione logistica
+
+
+from numpy import mean
+from numpy import std
+from sklearn.datasets import make_classification
+from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import LogisticRegression
+
+#######
+
+#fit del modello
+from sklearn.model_selection import train_test_split
+
+
+X_train, X_test, y_train, y_test = train_test_split(features, label, test_size=0.3, random_state=16)
+
+y_test.describe()
+y_train.describe()
+# import the class
+
+
+# instantiate the model (using the default parameters)
+logreg = LogisticRegression(random_state=1)
+
+# fit the model with data
+logreg.fit(X_train, y_train)
+logreg.coef_
+y_pred = logreg.predict(X_test)
+
+# import the metrics class
+from sklearn import metrics
+
+cnf_matrix = metrics.confusion_matrix(y_test, y_pred)
+cnf_matrix
+
+
+
+class_names=[0,1] # name  of classes
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+
+# create heatmap
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, cmap="YlGnBu" ,fmt='g')
+ax.xaxis.set_label_position("top")
+plt.tight_layout()
+plt.title('Confusion matrix', y=1.1)
+plt.ylabel('Actual label')
+plt.xlabel('Predicted label')
+
+from sklearn.metrics import classification_report
+target_names = ['Fallita', 'Attiva']
+print(classification_report(y_test, y_pred, target_names=target_names))
+
+
+(3+87)/(3+87+2+21)
+
+# coefficienti e relativi p-value/ CI
+
+import statsmodels.api as sm
+
+X_train = X_train.T.drop_duplicates().T
+df_train=pd.concat([X_train, y_train],axis=1)
+
+X_train.columns
+df_train.to_csv("df_train.csv",index=False)
+df_train=pd.read_csv("df_train.csv")
+Xtrain = df_train[['Indice di liquidità', 'Indice corrente',
+       'Indice di indebitam. a breve', 'Indice di indebitam. a lungo',
+       'Indice di copertura delle immob. (patrimoniale)',
+       'Rapporto di indebitamento',
+       'Indice di copertura delle immob. (finanziario)',
+       'Debiti v/banche su fatt.', 'Oneri finanz. su fatt.',
+       'Indice di indip. Finanz.', 'Grado di indip. da terzi',
+       'Posizione finanziaria netta_x', 'Debt/Equity ratio_x',
+       'Debt/EBITDA ratio_x', 'Rotaz. cap. investito (volte)_x',
+       'Rotaz. cap. cir. lordo (volte)', 'Incidenza circolante operativo',
+       'Giac. media delle scorte (gg)', 'Giorni copertura scorte (gg)',
+       'Durata media dei crediti al lordo IVA (gg)',
+       'Durata media dei debiti al lordo IVA (gg)',
+       'Durata Ciclo Commerciale (gg)', 'EBITDA_x', 'EBITDA/Vendite',
+       'Redditività del totale attivo (ROA)',
+       'Redditività di tutto il capitale investito (ROI)',
+       'Redditività delle vendite (ROS)',
+       'Redditività del capitale proprio (ROE)',
+       'Incid. oneri/Proventi extrag. (%)', 'Dipendenti_x',
+       'Ricavi pro-capite', 'Valore aggiunto pro-capite',
+       'Costo lavoro per addetto', 'Rendimento dipendenti',
+       'Capitale circolante netto', 'Margine sui consumi',
+       'Margine di tesoreria', 'Margine di struttura',
+       'Flusso di cassa di gestione', 'Ricavi delle vendite', 'Utile Netto',
+       'Totale Attività', 'Patrimonio Netto']]
+
+ytrain = df_train[['Status']]
+X_train_std_sm = sm.add_constant(Xtrain)
+
+#fit del modello
+log_reg = sm.Logit(ytrain, X_train_std_sm).fit()
+print(log_reg.summary())
+
+
+pvalues=log_reg.pvalues
+coef=pd.DataFrame(log_reg.params)
+#riordinati
+pvalues.sort_values()
+
+##
+
+pvalues=log_reg.pvalues
+coeff=log_reg.params
+df_pvalues = pd.DataFrame (pvalues, columns = ['pvalue'])
+df_coeff = pd.DataFrame (coeff, columns = ['coeff'])
+df_features=df_pvalues
+df_features=df_features.merge(df_coeff, how="inner", left_index=True, right_index=True) 
+df_features=df_features.sort_values(by=['pvalue'])
+
+###
+
+
+# 10-fold repeated cross validation
+cv = RepeatedKFold(n_splits=10, n_repeats=10, random_state=16)
+# create model
+model = LogisticRegression()
+# evaluate model
+scores = cross_val_score(model, features, label, scoring='accuracy', cv=cv, n_jobs=-1)
+# report performance
+print('Accuracy: %.3f (%.3f)' % (mean(scores), std(scores)))
+
+
+
+
+
+
+
+
+######
+
+#Classificazione LDA
+
+from numpy import mean
+from numpy import std
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.model_selection import cross_val_score
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis 
+from sklearn.metrics import classification_report
+
+
+# training/test data 70%-30%
+X_train,X_test,y_train,y_test=train_test_split(features,label,test_size=.3,random_state=1)
+ 
+clf = LinearDiscriminantAnalysis() 
+clf.fit(X_train,y_train)
+
+
+
+#previsione su train 
+clf.score(X_train,y_train)
+
+#previsioni
+y_pred_lda=clf.predict(X_test)
+
+#accuratezza 
+print(classification_report(y_test,y_pred_lda))
+
+cnf_matrix = metrics.confusion_matrix(y_test, y_pred_lda)
+cnf_matrix
+
+#########
+
+# modello CV
+model = LinearDiscriminantAnalysis()
+# k-fold cross validation
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=1)
+# valutazione del modello
+scores = cross_val_score(model, features, label, scoring='accuracy', cv=cv, n_jobs=-1)
+# summarize result
+print('Mean Accuracy: %.3f (%.3f)' % (mean(scores), std(scores)))
+
+
+#tuning dei parametri
+from sklearn.model_selection import GridSearchCV
+
+# 
+grid = dict()
+grid['solver'] = ['svd', 'lsqr', 'eigen']
+# 
+search = GridSearchCV(model, grid, scoring='accuracy', cv=cv, n_jobs=-1)
+# 
+results = search.fit(features, label)
+# accuratezza
+print('Mean Accuracy: %.3f' % results.best_score_)
+print('Config: %s' % results.best_params_)
+
+
+
+
+
+# matrice confusione
+
+cnf_matrix = metrics.confusion_matrix(y_test, y_pred_lda)
+cnf_matrix
+
+class_names=[0,1] # name  of classes
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+
+# create heatmap
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, cmap="YlGnBu" ,fmt='g')
+ax.xaxis.set_label_position("top")
+plt.tight_layout()
+plt.title('Confusion matrix', y=1.1)
+plt.ylabel('Actual label')
+plt.xlabel('Predicted label')
+
+
+
+
+
+
+
+
+
+#########
+#Alberi di decisione
+
+
+from sklearn.tree import DecisionTreeClassifier 
+from sklearn.model_selection import train_test_split 
+from sklearn import metrics 
+from sklearn import tree
+
+
+# 70% training and 30% test
+X_train_a, X_test_a, y_train_a, y_test_a = train_test_split(features, label, test_size=0.3,random_state=0) 
+
+
+# Creo Decision Tree classifer object
+clf = DecisionTreeClassifier(random_state=0)
+
+# fit Decision Tree Classifer
+clf = clf.fit(X_train_a,y_train_a)
+
+#previsioni su test data
+y_pred_a = clf.predict(X_test_a)
+
+
+# accuratezza
+
+print(classification_report(y_test_a,y_pred_a))
+
+print("Accuracy:",metrics.accuracy_score(y_test_a, y_pred_a))
+
+
+
+text_representation = tree.export_text(clf)
+print(text_representation)
+
+#plot
+fig = plt.figure(figsize=(25,25))
+_ = tree.plot_tree(clf,
+                   filled=True)
+
+#feature_names=features.columns
+
+#variabili importanti
+importance = clf.feature_importances_
+
+feat_importance=pd.DataFrame(importance,['Indice di liquidità', 'Indice corrente',
+       'Indice di indebitam. a breve', 'Indice di indebitam. a lungo',
+       'Indice di copertura delle immob. (patrimoniale)',
+       'Rapporto di indebitamento',
+       'Indice di copertura delle immob. (finanziario)',
+       'Debiti v/banche su fatt.', 'Oneri finanz. su fatt.',
+       'Indice di indip. Finanz.', 'Grado di indip. da terzi',
+       'Posizione finanziaria netta_x', 'Debt/Equity ratio_x',
+       'Debt/EBITDA ratio_x', 'Rotaz. cap. investito (volte)_x',
+       'Rotaz. cap. cir. lordo (volte)', 'Incidenza circolante operativo',
+       'Giac. media delle scorte (gg)', 'Giorni copertura scorte (gg)',
+       'Durata media dei crediti al lordo IVA (gg)',
+       'Durata media dei debiti al lordo IVA (gg)',
+       'Durata Ciclo Commerciale (gg)', 'EBITDA_x', 'EBITDA/Vendite',
+       'Redditività del totale attivo (ROA)',
+       'Redditività di tutto il capitale investito (ROI)',
+       'Redditività delle vendite (ROS)',
+       'Redditività del capitale proprio (ROE)',
+       'Incid. oneri/Proventi extrag. (%)', 'Dipendenti_x',
+       'Ricavi pro-capite', 'Valore aggiunto pro-capite',
+       'Costo lavoro per addetto', 'Rendimento dipendenti',
+       'Capitale circolante netto', 'Margine sui consumi',
+       'Margine di tesoreria', 'Margine di struttura',
+       'Flusso di cassa di gestione', 'Ricavi delle vendite', 'Utile Netto',
+       'Totale Attività', 'Patrimonio Netto'],columns=["Gini"])
+
+feat_importance=feat_importance.sort_values(by=['Gini'],ascending=False)
+
+feat_importance = feat_importance[feat_importance.Gini != 0]
+feat_importance
+
+
+
+
+# matrice confusione
+
+cnf_matrix = metrics.confusion_matrix(y_test_a, y_pred_a)
+cnf_matrix
+
+class_names=[0,1] # name  of classes
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+
+# create heatmap
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, cmap="YlGnBu" ,fmt='g')
+ax.xaxis.set_label_position("top")
+plt.tight_layout()
+plt.title('Confusion matrix', y=1.1)
+plt.ylabel('Actual label')
+plt.xlabel('Predicted label')
+
+
+# cross-validation
+
+# modello CV
+model = DecisionTreeClassifier()
+# k-fold cross validation
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=1)
+# valutazione del modello
+scores = cross_val_score(model, features, label, scoring='accuracy', cv=cv, n_jobs=-1)
+# summarize result
+print('Mean Accuracy: %.3f (%.3f)' % (mean(scores), std(scores)))
+
+#Pruning
+
+clf = DecisionTreeClassifier(random_state=0)
+path = clf.cost_complexity_pruning_path(X_train_a,y_train_a)
+path
+
+ccp_alphas, impurities = path.ccp_alphas, path.impurities
+
+plt.figure(figsize=(10, 6))
+plt.plot(ccp_alphas, impurities)
+plt.xlabel("effective alpha")
+plt.ylabel("total impurity of leaves")
+
+
+clfs = []
+
+for ccp_alpha in ccp_alphas:
+    clf = DecisionTreeClassifier(random_state=0, ccp_alpha=ccp_alpha)
+    clf.fit(X_train_a, y_train_a)
+    clfs.append(clf)
+
+tree_depths = [clf.tree_.max_depth for clf in clfs]
+plt.figure(figsize=(10,  6))
+plt.plot(ccp_alphas[:-1], tree_depths[:-1])
+plt.xlabel("effective alpha")
+plt.ylabel("total depth")
+
+
+from sklearn.metrics import accuracy_score
+
+acc_scores = [accuracy_score(y_test_a, clf.predict(X_test_a)) for clf in clfs]
+
+tree_depths = [clf.tree_.max_depth for clf in clfs]
+plt.figure(figsize=(10,  6))
+plt.grid()
+plt.plot(ccp_alphas[:-1], acc_scores[:-1])
+plt.xlabel("effective alpha")
+plt.ylabel("Accuracy scores")
+
+alpha_opt=0.016
+
+#albero con pruning
+# Creo Decision Tree classifer object
+clf = DecisionTreeClassifier(random_state=0,ccp_alpha=alpha_opt)
+
+# fit Decision Tree Classifer
+clf = clf.fit(X_train_a,y_train_a)
+
+#previsioni su test data
+y_pred_a = clf.predict(X_test_a)
+
+
+# accuratezza
+
+print(classification_report(y_test_a,y_pred_a))
+
+print("Accuracy:",metrics.accuracy_score(y_test_a, y_pred_a))
+
+
+
+text_representation = tree.export_text(clf)
+print(text_representation)
+
+#plot
+fig = plt.figure(figsize=(30,30))
+_ = tree.plot_tree(clf,
+                   filled=True,feature_names=features.columns)
+
+# matrice confusione
+
+cnf_matrix = metrics.confusion_matrix(y_test_a, y_pred_a)
+cnf_matrix
+
+class_names=[0,1] # name  of classes
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+
+# create heatmap
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, cmap="YlGnBu" ,fmt='g')
+ax.xaxis.set_label_position("top")
+plt.tight_layout()
+plt.title('Confusion matrix', y=1.1)
+plt.ylabel('Actual label')
+plt.xlabel('Predicted label')
+
+
+
+# cross-validation
+
+# modello CV
+model = DecisionTreeClassifier(random_state=0,ccp_alpha=alpha_opt)
+# k-fold cross validation
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)
+# valutazione del modello
+scores = cross_val_score(model, features, label, scoring='accuracy', cv=cv, n_jobs=-1)
+# summarize result
+print('Mean Accuracy: %.3f (%.3f)' % (mean(scores), std(scores)))
+
+
+
+#######
+
+
+#random forest 
+
+import matplotlib.pyplot as plt
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+
+from sklearn.metrics import accuracy_score
+from sklearn.ensemble import RandomForestClassifier
+ 
+
+
+X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(features, label, test_size=0.3, random_state=1, stratify=label)
+
+forest = RandomForestClassifier(criterion='gini',
+                                 n_estimators=50,
+                                 random_state=1,
+                                 n_jobs=2)
+
+forest.fit(X_train_r, y_train_r)
+ 
+
+# Measure model performance
+
+y_pred_r = forest.predict(X_test_r)
+print('Accuracy: %.3f' % accuracy_score(y_test_r, y_pred_r))
+
+# cross-validation
+
+# modello CV
+model = RandomForestClassifier(criterion='gini',
+                                 n_estimators=50,
+                                 random_state=1)
+# k-fold cross validation
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=1)
+# valutazione del modello
+scores = cross_val_score(model, features, label, scoring='accuracy', cv=cv, n_jobs=-1)
+
+# summarize result
+print('Mean Accuracy: %.3f (%.3f)' % (mean(scores), std(scores)))
+print(classification_report(y_test_r,y_pred_r))
+
+# matrice confusione
+
+cnf_matrix = metrics.confusion_matrix(y_test_r, y_pred_r)
+cnf_matrix
+
+class_names=[0,1] # name  of classes
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+
+# create heatmap
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, cmap="YlGnBu" ,fmt='g')
+ax.xaxis.set_label_position("top")
+plt.tight_layout()
+plt.title('Confusion matrix', y=1.1)
+plt.ylabel('Actual label')
+plt.xlabel('Predicted label')
+
+
+
+#statistiche base
+
+# EVALUATION
+#plot confronto modelli
+
+x_label=["RL","DT","DT post","LDA","RF"]
+y_label=[0.80,0.75,0.76,0.79,0.788]
+plt.plot(x_label, y_label, label = "Accuratezza")
+
+x_label1=["RL","DT","DT post","LDA","RF"]
+y_label1=[0.80,0.75,0.80,0.83,0.82]
+plt.plot(x_label1, y_label1, label = "CV")
+
+
+# naming the y axis
+plt.ylabel('Accuratezza')
+# giving a title to my graph
+plt.title('Confronto tra modelli')
+# show a legend on the plot
+plt.legend()
+# function to show the plot
+plt.show()
+
+
+#plot default accuracy
+x_d=["RL","DT","DT post","LDA","RF"]
+y_d=[0.6,0.6,0.625,0.58,0.53]
+plt.plot(x_d, y_d)
+
+
+# naming the y axis
+plt.ylabel('Accuratezza')
+# giving a title to my graph
+plt.title('Accuratezza Previsioni Default')
+# show a legend on the plot
+plt.legend()
+# function to show the plot
+plt.show()
